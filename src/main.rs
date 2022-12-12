@@ -15,12 +15,12 @@ const SETTINGS_DEFAULT: [i32; 2] = [3, 3];
 // const FONT: &str = "arial10x10";
 const FONT: &str = "sb8x8";
 
-fn check_board_inputs (board: &mut Board, key:tcod::input::Key) {
+fn check_board_inputs (board: &mut Board, key:tcod::input::Key, moves:&mut i32) {
     use tcod::input::KeyCode::*;
     match key {
         // movement keys
         tcod::input::Key { code: Up, .. } => board.grab(), // pick
-        tcod::input::Key { code: Down, .. } => board.drop(), // drop
+        tcod::input::Key { code: Down, .. } => { if board.drop() { *moves += 1; }},
         tcod::input::Key { code: Left, .. } => board.move_cursor(-1),
         tcod::input::Key { code: Right, .. } => board.move_cursor(1),
 
@@ -53,8 +53,8 @@ fn check_game_input (root: &mut Root, key:tcod::input::Key) -> i32 {
 
 #[derive(Debug)]
 struct Board {
-    width: i32,
-    height: i32,
+    // width: i32,
+    // height: i32,
     cursor: i32,
     spots: Vec<Vec<i32>>,
     disk_count: i32,
@@ -62,7 +62,9 @@ struct Board {
 }
 
 impl Board {
-    pub fn new (num_spots:i32, num_disks:i32, margin:i32, padding:i32) -> Self {
+    pub fn new (num_spots:i32, num_disks:i32
+        //, margin:i32, padding:i32
+    ) -> Self {
         let mut spots = vec![vec![]; num_spots as usize];
         for i in (1..num_disks+1).rev() {
             spots[0].push(i);
@@ -72,8 +74,8 @@ impl Board {
             spots,
             disk_count:num_disks,
             cur_disk:0,
-            width: margin*2 + (num_spots * num_disks) + (num_spots * padding),
-            height: margin*2 + num_disks + (padding * 2),
+            // width: margin*2 + (num_spots * num_disks) + (num_spots * padding),
+            // height: margin*2 + num_disks + (padding * 2),
         }
     }
 
@@ -88,30 +90,22 @@ impl Board {
         if grabbed.is_some() { self.cur_disk = grabbed.unwrap(); }
     }
 
-    pub fn drop (&mut self) {
-        if self.cur_disk == 0 { return };
+    pub fn drop (&mut self) -> bool {
+        if self.cur_disk == 0 { return false };
         let last = self.spots[self.cursor as usize].last();
-        if last.is_some() && last.unwrap() < &self.cur_disk { return; }
+        if last.is_some() && last.unwrap() < &self.cur_disk { return false; }
         self.spots[self.cursor as usize].push(self.cur_disk);
         self.cur_disk = 0;
+        true
     }
 
 }
 
 fn draw_board (root: &mut Root, board: &mut Board) {
-    use std::cmp::max;
 
-    root.set_default_background(colors::BLACK);
-    root.clear();
-
-    let half:[i32; 2] = [max(MIN_WIDTH, board.width)/2, max(MIN_HEIGHT, board.height)/2];
+    let half:[i32; 2] = [MIN_WIDTH / 2, MIN_HEIGHT / 2];
     let half_len: i32 = (board.spots.len() / 2) as i32;
     let padding = 2;
-
-    label(root, "Stack all disks on the rightmost pole", 1, half[0], true);
-    label(root, "You can't stack a disk on top of a smaller disk", 2, half[0], true);
-
-    label(root, "Left/Right: move | UP: pick disk | Down: drop disk | Esc: main menu", MIN_HEIGHT-2, half[0], true);
 
     // for each spot
     for i in 0..board.spots.len() {
@@ -139,8 +133,6 @@ fn draw_board (root: &mut Root, board: &mut Board) {
         }
         
     }
-
-    root.flush();
 
 }
 
@@ -267,45 +259,90 @@ fn menu(root: &mut Root) {
 }
 
 fn play(root: &mut Root, num_spots:i32, num_disks:i32) {
-// fn play() {
     
-    let mut board: Board = Board::new(num_spots, num_disks, 8, 2);
+    let mut board: Board = Board::new(num_spots, num_disks/*, 8, 2*/);
     println!("{:?}", board);
-    
-    // setup window
-    // use std::cmp::max;
-    // let mut root = Root::initializer()
-    //     .font(format!("fonts/{}.png", FONT), FontLayout::Tcod)
-    //     .font_type(FontType::Greyscale)
-    //     .size(max(board.width, MIN_WIDTH), max(board.height, MIN_HEIGHT))
-    //     .title(format!("Rusty Tower of Hanoi v{} by Paulo Granthon", env!("CARGO_PKG_VERSION")))
-    //     .init();
-    // tcod::system::set_fps(LIMIT_FPS);
 
-    let mut win = false;
+    let mut moves = 0;
 
     // game loop
     while !root.window_closed() {
 
+        root.set_default_background(colors::BLACK);
+        root.clear();
+    
+        label(root, "Stack all disks on the rightmost pole", 1, MIN_WIDTH / 2, true);
+        label(root, "You can't stack a disk on top of a smaller disk", 2, MIN_WIDTH / 2, true);
+
+        label(root, "Left/Right: move | UP: pick disk | Down: drop disk | Esc: main menu", MIN_HEIGHT-2, MIN_WIDTH / 2, true);
+
         draw_board(root, &mut board);
 
-        let key = root.wait_for_keypress(true);
-        check_board_inputs(&mut board, key);
+        root.flush();
 
-        if check_game_state(&mut board) {
-            win = true;
+        let key = root.wait_for_keypress(true);
+        check_board_inputs(&mut board, key, &mut moves);
+
+        if check_game_state(&mut board) { 
+            win(root, &mut board, moves);
             break;
         }
 
         if check_game_input(root, key) == 2 { break; }
     }
 
-    // if win
-    if win {
-        println!("WIN! :D");
-        menu(root);
-        return;
-    }
+}
 
+fn win (root: &mut Root, board: &mut Board, moves: i32) {
+    println!("WIN! :D");
+
+    while !root.window_closed() {
+
+        root.set_default_background(colors::BLACK);
+        root.clear();
+
+        let win_feedback = match board.spots.len() {
+            3 => { match board.disk_count {
+                1 => { "Good job debugging, now play the game -_-'"},
+                2 => { "Wow! That was easy huhh...?"},
+                3 => { "Well done!"},
+                4 => { "Good job!"},
+                5 => { "Smart!"},
+                6 => { "Very Smart!"},
+                7 => { "Amazing!"},
+                8 => { "You are crazy!!"},
+                9..=10 => { "Wow! That's impressive :o"},
+                11 => { "You. Are. A. Legend"},
+                12 => { "How in the.....???"},
+                _=> { "Hmmmmmm.... that's uhh.. unexpected" }
+            }},
+            4..=5 => { match board.disk_count {
+                1..=2 => { "Good job debugging, now play the game -_-'"},
+                3..=5 => { "Well done! I guess..."},
+                6..=10 => { "Is it actually hard?"},
+                11..=13 => { "This probably requires some thinking"},
+                _=> { "Hmmmmmm.... that's uhh.. unexpected" }
+            }},
+            6.. => { "Good job debugging, now play the game -_-'" }
+            _=> { "Wait, that's ilegal!"}
+
+        };
+
+        label(root, "You solved the puzzle! :D", 3, MIN_WIDTH / 2, true);
+        label(root, win_feedback, 5, MIN_WIDTH / 2, true);
+        label(root, &format!("solved in {} move{}", moves, if moves > 1 {'s'} else { ' ' }), 7, MIN_WIDTH / 2, true);
+
+        draw_board(root, board);
+
+        root.flush();
+
+        root.wait_for_keypress(true);
+        // let game_input_result = check_game_input(root, key);
+        // if game_input_result > 0 {
+            menu(root);
+            break;
+        // }
+
+    }
 
 }
