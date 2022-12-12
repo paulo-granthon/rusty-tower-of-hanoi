@@ -1,7 +1,7 @@
 use tcod::colors;
 use tcod::console::*;
 
-const MIN_WIDTH: i32 = 64;
+const MIN_WIDTH: i32 = 128;
 const MIN_HEIGHT: i32 = 28;
 const LIMIT_FPS: i32 = 60;
 
@@ -144,7 +144,7 @@ fn draw_piece (root:&mut Root, value:i32, spot_x:i32, spot_y:i32) {
 
         // define the glyph of the spot 
         let glyph = 
-        if value > 10 && k == -1{
+        if value >= 10 && k == -1{
             char::from_digit((value / 10) as u32, 10).unwrap()
         } else if k == 0 {
             char::from_digit((value % 10) as u32, 10).unwrap()
