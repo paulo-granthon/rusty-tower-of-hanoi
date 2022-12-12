@@ -2,8 +2,15 @@ use tcod::colors;
 use tcod::console::*;
 
 const MIN_WIDTH: i32 = 128;
-const MIN_HEIGHT: i32 = 28;
+const MIN_HEIGHT: i32 = 32;
 const LIMIT_FPS: i32 = 60;
+
+const SETTINGS_MINMAX: [[i32; 2]; 2] = [
+    [3, 7], // Poles
+    [1, 12] // Disks
+];
+
+const SETTINGS_DEFAULT: [i32; 2] = [3, 3];
 
 // const FONT: &str = "arial10x10";
 const FONT: &str = "sb8x8";
@@ -23,7 +30,7 @@ fn check_board_inputs (board: &mut Board, key:tcod::input::Key) {
 }
 
 // handle game inputs
-fn check_game_input (root: &mut Root, key:tcod::input::Key) -> bool {
+fn check_game_input (root: &mut Root, key:tcod::input::Key) -> i32 {
     use tcod::input::KeyCode::*;
     match key {
 
@@ -31,16 +38,17 @@ fn check_game_input (root: &mut Root, key:tcod::input::Key) -> bool {
         tcod::input::Key {code: Enter, alt: true, .. } => {
             let fullscreen = root.is_fullscreen();
             root.set_fullscreen(!fullscreen);
+            return 1
         }
 
         // exit game
         tcod::input::Key { code: Escape, .. } => menu(root),
-        tcod::input::Key { code: F4, alt: true, .. } => return true,
+        tcod::input::Key { code: F4, alt: true, .. } => return 2,
 
         _ => {}
     }
 
-    false
+    0
 }
 
 #[derive(Debug)]
@@ -96,12 +104,14 @@ fn draw_board (root: &mut Root, board: &mut Board) {
     root.set_default_background(colors::BLACK);
     root.clear();
 
-    // root.put_char(0, 0, 'A', BackgroundFlag::None);
-    // root.put_char(1, 0, 'B', BackgroundFlag::None);
-
     let half:[i32; 2] = [max(MIN_WIDTH, board.width)/2, max(MIN_HEIGHT, board.height)/2];
     let half_len: i32 = (board.spots.len() / 2) as i32;
     let padding = 2;
+
+    label(root, "Stack all disks on the rightmost pole", 1, half[0], true);
+    label(root, "You can't stack a disk on top of a smaller disk", 2, half[0], true);
+
+    label(root, "Left/Right: move | UP: pick disk | Down: drop disk | Esc: main menu", MIN_HEIGHT-2, half[0], true);
 
     // for each spot
     for i in 0..board.spots.len() {
@@ -129,7 +139,6 @@ fn draw_board (root: &mut Root, board: &mut Board) {
         }
         
     }
-
 
     root.flush();
 
@@ -184,13 +193,20 @@ fn main() {
     // play();
 }
 
+fn label (root: &mut Root, text: &str, y:i32, anchor:i32, center:bool) {
+    let mut txt_spot_x = anchor - if center {text.len() as i32 / 2} else {0};
+    for i in text.chars() {
+        root.put_char(txt_spot_x, y as i32, i, BackgroundFlag::None);
+        txt_spot_x += 1;
+    }
+}
+
 fn menu(root: &mut Root) {
     
-    const SETTINGS_MINMAX: [[i32; 2]; 2] = [[3, 7], [3, 12]];
-    const BTN_SIZE: i32 = 8;
+    const BTN_SIZE: i32 = 10;
 
     let mut menu_cursor = 0;
-    let mut settings: [i32; 2] = [3, 3];
+    let mut settings: [i32; 2] = SETTINGS_DEFAULT;
 
     while !root.window_closed() {
 
@@ -200,28 +216,42 @@ fn menu(root: &mut Root) {
         let half:[i32; 2] = [MIN_WIDTH/2, MIN_HEIGHT/2];
         let padding = 2;
 
-        for i in 0..2 {
-            let spot_x: i32 = half[0] - BTN_SIZE - padding + (i as i32 * BTN_SIZE) + (padding * i as i32);
-            let spot_y: i32 = half[1] + (BTN_SIZE / 2);
+        label(root, "Rusty Tower Of Hanoi", 1, half[0], true);
+        label(root, "Arrow keys: Change rules", half[1] / 2, half[0], true);
 
+        for i in 0..2 {
+            let spot_x: i32 = 2 + half[0] - BTN_SIZE - padding + (i as i32 * BTN_SIZE) + (padding * i as i32);
+            let spot_y: i32 = half[1];
+
+            label(root, ["Poles", "Disks"][i], spot_y, spot_x + 3, false);
+    
             root.put_char(spot_x, spot_y as i32, char::from_digit((settings[i] / 10) as u32, 10).unwrap(), BackgroundFlag::None);
             root.put_char(spot_x+1, spot_y as i32, char::from_digit((settings[i] % 10) as u32, 10).unwrap(), BackgroundFlag::None);
     
             if i as i32 == menu_cursor {
-                root.put_char(spot_x, half[1] - 2, '@', BackgroundFlag::None);
+                root.put_char(spot_x + 0, spot_y - 2, '/',  BackgroundFlag::None);
+                root.put_char(spot_x + 1, spot_y - 2, '\\', BackgroundFlag::None);
+                root.put_char(spot_x + 0, spot_y + 2, '\\', BackgroundFlag::None);
+                root.put_char(spot_x + 1, spot_y + 2, '/',  BackgroundFlag::None);
             }
     
         }
 
+        label(root, "Press Enter to play!", MIN_HEIGHT - 3, half[0], true);
 
         root.flush();
-
 
         let key = root.wait_for_keypress(true);
 
         use tcod::input::KeyCode::*;
         use core::cmp::{min, max};
-        match key {
+
+        let game_input_result = check_game_input(root, key);
+        if game_input_result > 0 {
+            if game_input_result == 2 { break; }
+        }
+
+        else { match key {
             tcod::input::Key { code: Left, .. }  => menu_cursor = max(menu_cursor-1, 0),
             tcod::input::Key { code: Right, .. } => menu_cursor = min(menu_cursor+1, 1),
             tcod::input::Key { code: Up, .. }   => settings[menu_cursor as usize] = min(settings[menu_cursor as usize] + 1, SETTINGS_MINMAX[menu_cursor as usize][1]),
@@ -231,10 +261,7 @@ fn menu(root: &mut Root) {
                 break;
             },
             _=> {}
-        }
-
-
-        if check_game_input(root, key) { break; }
+        }}
 
     }
 }
@@ -270,7 +297,7 @@ fn play(root: &mut Root, num_spots:i32, num_disks:i32) {
             break;
         }
 
-        if check_game_input(root, key) { break; }
+        if check_game_input(root, key) == 2 { break; }
     }
 
     // if win
