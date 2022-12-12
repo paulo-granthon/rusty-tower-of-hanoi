@@ -1,12 +1,12 @@
 use tcod::colors;
 use tcod::console::*;
 
-const LIMIT_FPS: i32 = 60;
-const MIN_WIDTH: i32 = 40;
+const MIN_WIDTH: i32 = 64;
 const MIN_HEIGHT: i32 = 28;
+const LIMIT_FPS: i32 = 60;
 
 // const FONT: &str = "arial10x10";
-const FONT: &str = "sb16x16";
+const FONT: &str = "sb8x8";
 
 fn check_board_inputs (board: &mut Board, key:tcod::input::Key) {
     use tcod::input::KeyCode::*;
@@ -34,7 +34,7 @@ fn check_game_input (root: &mut Root, key:tcod::input::Key) -> bool {
         }
 
         // exit game
-        tcod::input::Key { code: Escape, .. } => return true,
+        tcod::input::Key { code: Escape, .. } => menu(root),
         tcod::input::Key { code: F4, alt: true, .. } => return true,
 
         _ => {}
@@ -143,8 +143,11 @@ fn draw_piece (root:&mut Root, value:i32, spot_x:i32, spot_y:i32) {
     for k in range_k[0]..(range_k[1]+1) {
 
         // define the glyph of the spot 
-        let glyph = if k == 0 {
-            char::from_digit(value as u32, 10).unwrap()
+        let glyph = 
+        if value > 10 && k == -1{
+            char::from_digit((value / 10) as u32, 10).unwrap()
+        } else if k == 0 {
+            char::from_digit((value % 10) as u32, 10).unwrap()
         } else if k == range_k[0] {
             if rem {'{'} else {'['}
         } else if k == range_k[1] {
