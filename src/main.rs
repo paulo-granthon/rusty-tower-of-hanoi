@@ -42,8 +42,8 @@ fn check_game_input (root: &mut Root, key:tcod::input::Key) -> i32 {
         }
 
         // exit game
-        tcod::input::Key { code: Escape, .. } => menu(root),
-        tcod::input::Key { code: F4, alt: true, .. } => return 2,
+        tcod::input::Key { code: Escape, .. } => return 2,
+        tcod::input::Key { code: F4, alt: true, .. } => return 3,
 
         _ => {}
     }
@@ -238,22 +238,23 @@ fn menu(root: &mut Root) {
         use tcod::input::KeyCode::*;
         use core::cmp::{min, max};
 
-        let game_input_result = check_game_input(root, key);
-        if game_input_result > 0 {
-            if game_input_result == 2 { break; }
+        match check_game_input(root, key) {
+            2 | 3 => break,
+            0 => {
+                match key {
+                    tcod::input::Key { code: Left, .. }  => menu_cursor = max(menu_cursor-1, 0),
+                    tcod::input::Key { code: Right, .. } => menu_cursor = min(menu_cursor+1, 1),
+                    tcod::input::Key { code: Up, .. }   => settings[menu_cursor as usize] = min(settings[menu_cursor as usize] + 1, SETTINGS_MINMAX[menu_cursor as usize][1]),
+                    tcod::input::Key { code: Down, .. } => settings[menu_cursor as usize] = max(settings[menu_cursor as usize] - 1, SETTINGS_MINMAX[menu_cursor as usize][0]),
+                    tcod::input::Key { code: Enter, .. } => {
+                        play(root, settings[0], settings[1]);
+                        break;
+                    },
+                    _=> {}
+                }
+            }
+            _=>{}
         }
-
-        else { match key {
-            tcod::input::Key { code: Left, .. }  => menu_cursor = max(menu_cursor-1, 0),
-            tcod::input::Key { code: Right, .. } => menu_cursor = min(menu_cursor+1, 1),
-            tcod::input::Key { code: Up, .. }   => settings[menu_cursor as usize] = min(settings[menu_cursor as usize] + 1, SETTINGS_MINMAX[menu_cursor as usize][1]),
-            tcod::input::Key { code: Down, .. } => settings[menu_cursor as usize] = max(settings[menu_cursor as usize] - 1, SETTINGS_MINMAX[menu_cursor as usize][0]),
-            tcod::input::Key { code: Enter, .. } => {
-                play(root, settings[0], settings[1]);
-                break;
-            },
-            _=> {}
-        }}
 
     }
 }
@@ -288,7 +289,14 @@ fn play(root: &mut Root, num_spots:i32, num_disks:i32) {
             break;
         }
 
-        if check_game_input(root, key) == 2 { break; }
+        match check_game_input(root, key) {
+            2 => {
+                menu(root);
+                break; 
+            },
+            3 => break,
+            _=>{}
+        } 
     }
 
 }
