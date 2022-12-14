@@ -533,6 +533,7 @@ fn win (root: &mut Root, board: &mut Board) {
             tcod::input::Key { code: Control, .. } => false,
             tcod::input::Key { code: Char, printable:'c', left_ctrl: true, .. } => false,
             tcod::input::Key { code: Char, printable:'v', left_ctrl: true, .. } => false,
+            tcod::input::Key { code: Tab, left_alt: true, .. } => false,
             _=> true
         }} {
             println!("Press (almost) any key to continue");
