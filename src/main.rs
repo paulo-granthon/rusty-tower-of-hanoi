@@ -306,7 +306,7 @@ fn play(root: &mut Root, num_spots:usize, num_disks:usize) {
         match check_board_inputs(&mut board, key) {
             1 => last_grabbed_spot = board.cursor,
             2 => if board.cursor != last_grabbed_spot { moves += 1; println!("{} moves", moves) },
-            3 => board.reset(),
+            3 => { board.reset(); moves = 0; },
             _=>{}
         }
 
