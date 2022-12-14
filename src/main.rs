@@ -1,32 +1,39 @@
 use tcod::colors;
 use tcod::console::*;
 
-const MIN_WIDTH: i32 = 128;
-const MIN_HEIGHT: i32 = 32;
+const MIN_WIDTH: i8 = 108;
+const MIN_HEIGHT: i8 = 32;
 const LIMIT_FPS: i32 = 60;
 
-const SETTINGS_MINMAX: [[i32; 2]; 2] = [
+const SETTINGS_MINMAX: [[usize; 2]; 2] = [
     [3, 7], // Poles
     [1, 12] // Disks
 ];
 
-const SETTINGS_DEFAULT: [i32; 2] = [3, 3];
+const SETTINGS_DEFAULT: [usize; 2] = [3, 3];
 
 // const FONT: &str = "arial10x10";
 const FONT: &str = "sb8x8";
 
-fn check_board_inputs (board: &mut Board, key:tcod::input::Key, moves:&mut i32) {
+
+fn check_board_inputs (board: &mut Board, key:tcod::input::Key) -> i8 {
     use tcod::input::KeyCode::*;
     match key {
+
+        // action keys
+        tcod::input::Key { code: Up, .. }       => if board.grab() {1} else {0},
+        tcod::input::Key { code: Down, .. }     => if board.drop() {2} else {0},
+
         // movement keys
-        tcod::input::Key { code: Up, .. } => board.grab(), // pick
-        tcod::input::Key { code: Down, .. } => { if board.drop() { *moves += 1; }},
-        tcod::input::Key { code: Left, .. } => board.move_cursor(-1),
-        tcod::input::Key { code: Right, .. } => board.move_cursor(1),
+        tcod::input::Key { code: Left, .. }     => { board.move_cursor(-1); 0},
+        tcod::input::Key { code: Right, .. }    => { board.move_cursor(1);  0},
 
-        _ => {}
+        // reset board
+        tcod::input::Key { code: Char, printable:'r', .. } => 3,
+
+        // unmaped
+        _ => {0}
     }
-
 }
 
 // handle game inputs
@@ -53,25 +60,28 @@ fn check_game_input (root: &mut Root, key:tcod::input::Key) -> i32 {
 
 #[derive(Debug)]
 struct Board {
-    // width: i32,
-    // height: i32,
-    cursor: i32,
-    spots: Vec<Vec<i32>>,
-    disk_count: i32,
-    cur_disk:i32
+    // width: i8,
+    // height: i8,
+    cursor: i8,
+    spots: Vec<Vec<usize>>,
+    disk_count: usize,
+    cur_disk:usize
 }
 
 impl Board {
-    pub fn new (num_spots:i32, num_disks:i32
-        //, margin:i32, padding:i32
-    ) -> Self {
+    fn spots(num_spots:usize, num_disks:usize) -> Vec<Vec<usize>> {
         let mut spots = vec![vec![]; num_spots as usize];
         for i in (1..num_disks+1).rev() {
             spots[0].push(i);
         }
+        spots
+    }
+    pub fn new (num_spots:usize, num_disks:usize
+        //, margin:i32, padding:i32
+    ) -> Self {
         Board {
             cursor:0,
-            spots,
+            spots:Self::spots(num_spots, num_disks),
             disk_count:num_disks,
             cur_disk:0,
             // width: margin*2 + (num_spots * num_disks) + (num_spots * padding),
@@ -79,15 +89,16 @@ impl Board {
         }
     }
 
-    pub fn move_cursor (&mut self, dir: i32) {
+    pub fn move_cursor (&mut self, dir: i8) {
         use core::cmp::{min, max};
         self.cursor = max(min(self.cursor + dir, (self.spots.len()-1).try_into().unwrap()), 0);
     }
 
-    pub fn grab (&mut self) {
-        if self.cur_disk != 0 { return };
+    pub fn grab (&mut self) -> bool {
+        if self.cur_disk != 0 { return false };
         let grabbed = self.spots[self.cursor as usize].pop();
         if grabbed.is_some() { self.cur_disk = grabbed.unwrap(); }
+        true
     }
 
     pub fn drop (&mut self) -> bool {
@@ -99,36 +110,41 @@ impl Board {
         true
     }
 
+    pub fn reset (&mut self) {
+        self.spots = Self::spots(self.spots.len(), self.disk_count);
+        self.cur_disk = 0;
+    }
+
 }
 
 fn draw_board (root: &mut Root, board: &mut Board) {
 
-    let half:[i32; 2] = [MIN_WIDTH / 2, MIN_HEIGHT / 2];
-    let half_len: i32 = (board.spots.len() / 2) as i32;
+    let half:[i8; 2] = [MIN_WIDTH / 2, MIN_HEIGHT / 2];
+    let half_len: i8 = (board.spots.len() / 2) as i8;
     let padding = 2;
 
     // for each spot
-    for i in 0..board.spots.len() {
-        let spot_x: i32 = half[0] - (half_len * board.disk_count) - (half_len * padding) + (i as i32 * board.disk_count) + (padding * i as i32);
-        let spot_y: i32 = half[1] + (board.disk_count / 2);
+    for i in 0..board.spots.len() as i8 {
+        let spot_x: i8 = half[0] - (half_len * board.disk_count as i8) - (half_len * padding) + (i * board.disk_count as i8) + (padding * i);
+        let spot_y: i8 = half[1] + (board.disk_count as i8 / 2);
 
         // for each value on spot
-        for j in 0..board.disk_count as usize + 1 {
+        for j in 0..board.disk_count as i32 + 1 {
 
             // if no value at index on spot, draw bare pole and skip
-            if j >= board.spots[i].len() {
-                root.put_char(spot_x, spot_y - j as i32, '|', BackgroundFlag::None);
+            if j >= board.spots[i as usize].len() as i32 {
+                root.put_char(spot_x as i32, spot_y as i32 - j, '|', BackgroundFlag::None);
                 continue;
             }
 
-            draw_piece(root, board.spots[i][j], spot_x, spot_y - j as i32);
+            draw_piece(root, board.spots[i as usize][j as usize], spot_x, spot_y - j as i8);
 
         }
-        if i as i32 == board.cursor {
+        if i == board.cursor {
             // root.put_char(spot_x, 1, '▼', BackgroundFlag::None);
-            root.put_char(spot_x, half[1] - (board.disk_count / 2) - 4, '@', BackgroundFlag::None);
+            root.put_char(spot_x.into(), (half[1] - (board.disk_count as i8 / 2) - 4).into(), '@', BackgroundFlag::None);
             if board.cur_disk != 0 {
-                draw_piece(root, board.cur_disk as i32, spot_x, half[1] - (board.disk_count / 2) - 3)
+                draw_piece(root, board.cur_disk, spot_x, half[1] - (board.disk_count as i8 / 2) - 3)
             }
         }
         
@@ -136,8 +152,8 @@ fn draw_board (root: &mut Root, board: &mut Board) {
 
 }
 
-fn draw_piece (root:&mut Root, value:i32, spot_x:i32, spot_y:i32) {
-    let half_j = value / 2;
+fn draw_piece (root:&mut Root, value:usize, spot_x:i8, spot_y:i8) {
+    let half_j = value as i8 / 2;
     let rem = (value as f32 / 2.0).fract() > 0.0;
     let range_k = [-half_j - 1, half_j + 1];
 
@@ -159,13 +175,13 @@ fn draw_piece (root:&mut Root, value:i32, spot_x:i32, spot_y:i32) {
 
         // println!("[{}]: {}", k, glyph);
         
-        root.put_char(spot_x + k, spot_y as i32, glyph, BackgroundFlag::None);
+        root.put_char((spot_x + k) as i32, spot_y as i32, glyph, BackgroundFlag::None);
     }
 
 }
 
 fn check_game_state(board: &mut Board) -> bool {
-    let goal = board.spots.last().unwrap().len() as i32;
+    let goal = board.spots.last().unwrap().len();
     // println!("goal: {}", goal);
     goal == board.disk_count
 }
@@ -176,7 +192,7 @@ fn main() {
     let mut root = Root::initializer()
         .font(format!("fonts/{}.png", FONT), FontLayout::Tcod)
         .font_type(FontType::Greyscale)
-        .size(MIN_WIDTH, MIN_HEIGHT)
+        .size(MIN_WIDTH.into(), MIN_HEIGHT.into())
         .title(format!("Rusty Tower of Hanoi v{} by Paulo Granthon", env!("CARGO_PKG_VERSION")))
         .init();
     tcod::system::set_fps(LIMIT_FPS);
@@ -185,46 +201,49 @@ fn main() {
     // play();
 }
 
-fn label (root: &mut Root, text: &str, y:i32, anchor:i32, center:bool) {
-    let mut txt_spot_x = anchor - if center {text.len() as i32 / 2} else {0};
+fn label (root: &mut Root, text: &str, y:i8, anchor:i8, center:bool) {
+    let mut txt_spot_x = anchor - if center {text.len() as i8 / 2} else {0};
     for i in text.chars() {
-        root.put_char(txt_spot_x, y as i32, i, BackgroundFlag::None);
+        root.put_char(txt_spot_x.into(), y.into(), i, BackgroundFlag::None);
         txt_spot_x += 1;
     }
 }
 
 fn menu(root: &mut Root) {
     
-    const BTN_SIZE: i32 = 10;
+    const BTN_SIZE: i8 = 10;
 
     let mut menu_cursor = 0;
-    let mut settings: [i32; 2] = SETTINGS_DEFAULT;
+    let mut settings: [usize; 2] = SETTINGS_DEFAULT;
 
     while !root.window_closed() {
 
         root.set_default_background(colors::BLACK);
         root.clear();
 
-        let half:[i32; 2] = [MIN_WIDTH/2, MIN_HEIGHT/2];
+        let half:[i8; 2] = [MIN_WIDTH/2, MIN_HEIGHT/2];
         let padding = 2;
 
         label(root, "Rusty Tower Of Hanoi", 1, half[0], true);
         label(root, "Arrow keys: Change rules", half[1] / 2, half[0], true);
 
         for i in 0..2 {
-            let spot_x: i32 = 2 + half[0] - BTN_SIZE - padding + (i as i32 * BTN_SIZE) + (padding * i as i32);
-            let spot_y: i32 = half[1];
+            let spot_x: i8 = 2 + half[0] - BTN_SIZE - padding + (i as i8 * BTN_SIZE) + (padding * i as i8);
+            let spot_y: i8 = half[1];
 
             label(root, ["Poles", "Disks"][i], spot_y, spot_x + 3, false);
+
+            let spot_x32 = spot_x as i32;
+            let spot_y32 = spot_y as i32;
     
-            root.put_char(spot_x, spot_y as i32, char::from_digit((settings[i] / 10) as u32, 10).unwrap(), BackgroundFlag::None);
-            root.put_char(spot_x+1, spot_y as i32, char::from_digit((settings[i] % 10) as u32, 10).unwrap(), BackgroundFlag::None);
+            root.put_char(spot_x32, spot_y32, char::from_digit((settings[i] / 10) as u32, 10).unwrap(), BackgroundFlag::None);
+            root.put_char(spot_x32 + 1, spot_y32, char::from_digit((settings[i] % 10) as u32, 10).unwrap(), BackgroundFlag::None);
     
             if i as i32 == menu_cursor {
-                root.put_char(spot_x + 0, spot_y - 2, '/',  BackgroundFlag::None);
-                root.put_char(spot_x + 1, spot_y - 2, '\\', BackgroundFlag::None);
-                root.put_char(spot_x + 0, spot_y + 2, '\\', BackgroundFlag::None);
-                root.put_char(spot_x + 1, spot_y + 2, '/',  BackgroundFlag::None);
+                root.put_char(spot_x32 + 0, spot_y32 - 2, '/',  BackgroundFlag::None);
+                root.put_char(spot_x32 + 1, spot_y32 - 2, '\\', BackgroundFlag::None);
+                root.put_char(spot_x32 + 0, spot_y32 + 2, '\\', BackgroundFlag::None);
+                root.put_char(spot_x32 + 1, spot_y32 + 2, '/',  BackgroundFlag::None);
             }
     
         }
@@ -259,12 +278,13 @@ fn menu(root: &mut Root) {
     }
 }
 
-fn play(root: &mut Root, num_spots:i32, num_disks:i32) {
+fn play(root: &mut Root, num_spots:usize, num_disks:usize) {
     
     let mut board: Board = Board::new(num_spots, num_disks/*, 8, 2*/);
     println!("{:?}", board);
 
     let mut moves = 0;
+    let mut last_grabbed_spot = -1;
 
     // game loop
     while !root.window_closed() {
@@ -275,14 +295,20 @@ fn play(root: &mut Root, num_spots:i32, num_disks:i32) {
         label(root, "Stack all disks on the rightmost pole", 1, MIN_WIDTH / 2, true);
         label(root, "You can't stack a disk on top of a smaller disk", 2, MIN_WIDTH / 2, true);
 
-        label(root, "Left/Right: move | UP: pick disk | Down: drop disk | Esc: main menu", MIN_HEIGHT-2, MIN_WIDTH / 2, true);
-
+        label(root, "Left/Right: move | UP: pick disk | Down: drop disk", MIN_HEIGHT-3, MIN_WIDTH / 2, true);
+        label(root, "R: reset | Esc: main menu", MIN_HEIGHT-2, MIN_WIDTH / 2, true);
+        
         draw_board(root, &mut board);
 
         root.flush();
 
         let key = root.wait_for_keypress(true);
-        check_board_inputs(&mut board, key, &mut moves);
+        match check_board_inputs(&mut board, key) {
+            1 => last_grabbed_spot = board.cursor,
+            2 => if board.cursor != last_grabbed_spot { moves += 1; println!("{} moves", moves) },
+            3 => board.reset(),
+            _=>{}
+        }
 
         if check_game_state(&mut board) { 
             win(root, &mut board, moves);
