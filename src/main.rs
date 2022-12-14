@@ -521,6 +521,7 @@ fn win (root: &mut Root, board: &mut Board) {
 
         // also draw solved board
         draw_board(root, board);
+        label(root, "Press (almost) any key to continue", MIN_HEIGHT-2, MIN_WIDTH/2, true);
 
         // rendering
         root.flush();
@@ -536,9 +537,7 @@ fn win (root: &mut Root, board: &mut Board) {
             tcod::input::Key { code: Tab, left_alt: true, .. } => false,
             tcod::input::Key { code: Alt, .. } => false,
             _=> true
-        }} {
-            println!("Press (almost) any key to continue");
-        }
+        }} {}
 
         // valid key pressed, back to menu
         menu(root);
