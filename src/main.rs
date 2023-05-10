@@ -528,14 +528,17 @@ fn win (root: &mut Root, board: &mut Board) {
 
         // check keypress to leave
         println!("Press (almost) any key to continue");
-        while !{use tcod::input::KeyCode::*; match root.wait_for_keypress(true) {
-            tcod::input::Key { code: LeftWin, .. } => false,
-            tcod::input::Key { code: PrintScreen, .. } => false,
-            tcod::input::Key { code: Control, .. } => false,
-            tcod::input::Key { code: Char, printable:'c', left_ctrl: true, .. } => false,
-            tcod::input::Key { code: Char, printable:'v', left_ctrl: true, .. } => false,
-            tcod::input::Key { code: Tab, left_alt: true, .. } => false,
-            tcod::input::Key { code: Alt, .. } => false,
+        while !{
+            use tcod::input::*;
+            use tcod::input::KeyCode::*; 
+            match root.wait_for_keypress(true) {
+            Key { code: LeftWin, .. } => false,
+            Key { code: PrintScreen, .. } => false,
+            Key { code: Control, .. } => false,
+            Key { code: Char, printable:'c', left_ctrl: true, .. } => false,
+            Key { code: Char, printable:'v', left_ctrl: true, .. } => false,
+            Key { code: Tab, left_alt: true, .. } => false,
+            Key { code: Alt, .. } => false,
             _=> true
         }} {}
 
