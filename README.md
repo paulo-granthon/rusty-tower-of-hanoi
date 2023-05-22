@@ -1,3 +1,5 @@
+[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
+
 # Rusty Tower of Hanoi
 Tower of Hanoi implementation with Rust
 
