@@ -15,7 +15,7 @@ With 3 disks, the puzzle can be solved in 7 moves. The minimal number of moves r
 # My modifications to the original puzzle
 Number of disks and rods can be configured.  
 
-# Technologies used
+# References & Technologies
 Tower of Hanoi - https://en.wikipedia.org/wiki/Tower_of_Hanoi  
 Rust - https://www.rust-lang.org/  
 rendering (libtcod) - https://crates.io/crates/tcod  
