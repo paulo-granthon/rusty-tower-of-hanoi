@@ -1,8 +1,8 @@
 use tcod::colors;
 use tcod::console::*;
 
-const MIN_WIDTH: i8 = 108;
-const MIN_HEIGHT: i8 = 32;
+const MIN_WIDTH: i16 = 128;
+const MIN_HEIGHT: i16 = 80;
 const LIMIT_FPS: i32 = 60;
 
 const SETTINGS_MINMAX: [[usize; 2]; 2] = [
@@ -15,18 +15,17 @@ const SETTINGS_DEFAULT: [usize; 2] = [3, 3];
 // const FONT: &str = "arial10x10";
 const FONT: &str = "sb8x8";
 
-
-fn check_board_inputs (board: &mut Board, key:tcod::input::Key) -> i8 {
+fn check_board_inputs (board: &mut Board, key:tcod::input::Key) -> i16 {
     use tcod::input::KeyCode::*;
     match key {
 
         // action keys
-        tcod::input::Key { code: Up, .. }       => if board.grab() {1} else {0},
-        tcod::input::Key { code: Down, .. }     => if board.drop() {2} else {0},
+        tcod::input::Key { code: Up, .. } => if board.grab() {1} else {0},
+        tcod::input::Key { code: Down, .. } => if board.drop() {2} else {0},
 
         // movement keys
-        tcod::input::Key { code: Left, .. }     => { board.move_cursor(-1); 0},
-        tcod::input::Key { code: Right, .. }    => { board.move_cursor(1);  0},
+        tcod::input::Key { code: Left, .. } => { board.move_cursor(-1); 0},
+        tcod::input::Key { code: Right, .. } => { board.move_cursor(1); 0},
 
         // reset board
         tcod::input::Key { code: Char, printable:'r', .. } => 3,
@@ -62,7 +61,7 @@ fn check_game_input (root: &mut Root, key:tcod::input::Key) -> i32 {
 struct Board {
 
     // board data
-    cursor: i8,
+    cursor: i16,
     spots: Vec<Vec<usize>>,
     disk_count: usize,
     grabbed:usize,
@@ -100,7 +99,7 @@ impl Board {
     }
 
     // moves the cursor between spots
-    pub fn move_cursor (&mut self, dir: i8) {
+    pub fn move_cursor (&mut self, dir: i16) {
         use core::cmp::{min, max};
 
         // clamp between 0 and the number of spots-1
@@ -117,7 +116,7 @@ impl Board {
         let grabbed = self.spots[self.cursor as usize].pop();
 
         // match result
-        match grabbed { 
+        match grabbed {
 
             // if some, replace grabbed and return true
             Some(disk) => {self.grabbed = disk; true},
@@ -148,7 +147,7 @@ impl Board {
 
             // grabbed is other than last dropped: count move
             x if x != self.last_dropped => {
-                self.last_dropped = self.grabbed; 
+                self.last_dropped = self.grabbed;
                 self.moves += 1;
                 self.grabbed = 0;
                 true
@@ -162,7 +161,7 @@ impl Board {
         }
     }
 
-    // reset board 
+    // reset board
     pub fn reset (&mut self) {
 
         // recreate spots with the same number of disks
@@ -181,16 +180,16 @@ impl Board {
 fn draw_board (root: &mut Root, board: &mut Board) {
 
     // calculate the half sizes of the Board, half number of spots and define padding
-    let half:[i8; 2] = [MIN_WIDTH / 2, MIN_HEIGHT / 2];
-    let half_len: i8 = (board.spots.len() / 2) as i8;
-    const PADDING:i8 = 2;
+    let half:[i16; 2] = [MIN_WIDTH / 2, MIN_HEIGHT / 2];
+    let half_len: i16 = (board.spots.len() / 2) as i16;
+    const PADDING:i16 = 2;
 
     // for each spot
-    for x in 0..board.spots.len() as i8 {
+    for x in 0..board.spots.len() as i16 {
 
         // calculate the x and y position of the spot so that all spots are in centered on the screen and equally spaced to one another
-        let spot_x: i8 = half[0] - (half_len * board.disk_count as i8) - (half_len * PADDING) + (x * board.disk_count as i8) + (PADDING * x);
-        let spot_y: i8 = half[1] + (board.disk_count as i8 / 2);
+        let spot_x: i16 = half[0] - (half_len * board.disk_count as i16) - (half_len * PADDING) + (x * board.disk_count as i16) + (PADDING * x);
+        let spot_y: i16 = half[1] + (board.disk_count as i16 / 2);
 
         // for a range of 0 to the number of disks in play + 1
         for y in 0..board.disk_count as i32 + 1 {
@@ -202,37 +201,37 @@ fn draw_board (root: &mut Root, board: &mut Board) {
             }
 
             // otherwise, draw the disk at this y position of spot
-            draw_disk(root, board.spots[x as usize][y as usize], spot_x, spot_y - y as i8);
+            draw_disk(root, board.spots[x as usize][y as usize], spot_x, spot_y - y as i16);
 
         }
 
         // if this is the spot currently selected by the cursor, draw the cursor above it
         if x == board.cursor {
             // root.put_char(spot_x, 1, '▼', BackgroundFlag::None);
-            root.put_char(spot_x.into(), (half[1] - (board.disk_count as i8 / 2) - 4).into(), '@', BackgroundFlag::None);
+            root.put_char(spot_x.into(), (half[1] - (board.disk_count as i16 / 2) - 4).into(), '@', BackgroundFlag::None);
 
             // if there's a grabbed disk, draw it too
             if board.grabbed != 0 {
-                draw_disk(root, board.grabbed, spot_x, half[1] - (board.disk_count as i8 / 2) - 3)
+                draw_disk(root, board.grabbed, spot_x, half[1] - (board.disk_count as i16 / 2) - 3)
             }
         }
-        
+
     }
 
 }
 
 // draws a disk at given position
-fn draw_disk (root:&mut Root, value:usize, spot_x:i8, spot_y:i8) {
+fn draw_disk (root:&mut Root, value:usize, spot_x:i16, spot_y:i16) {
 
     // define the half x size of the disk as well as a bool to define if the value of the disk is odd and a range calculated from it's size
-    let half_x = value as i8 / 2;
+    let half_x = value as i16 / 2;
     let odd = (value as f32 / 2.0).fract() > 0.0;
     let range = [-half_x - 1, half_x + 2];
 
     // for each x in the disk's range
     for x in range[0]..range[1] {
 
-        // define the glyph of the spot 
+        // define the glyph of the spot
         let glyph = match x {
 
             // if value >= 10 and x is -1 it means that this position should contain the first digit of the disk's value
@@ -243,21 +242,21 @@ fn draw_disk (root:&mut Root, value:usize, spot_x:i8, spot_y:i8) {
 
             // left tip
             _x if _x == range[0] => match odd {
-                true => {'{'} 
+                true => {'{'}
                 _=> {'['}
             },
 
             // right tip
             _x if _x == range[1] -1 => match odd {
-                true => {'}'} 
+                true => {'}'}
                 _=> {']'}
             },
 
             // fill any other position
             _=> '='
         };
-        
-        // draw the glyph defined by the conditions        
+
+        // draw the glyph defined by the conditions
         root.put_char((spot_x + x) as i32, spot_y as i32, glyph, BackgroundFlag::None);
     }
 
@@ -286,12 +285,12 @@ fn main() {
 }
 
 // renders text on the screen at given position
-fn label (root: &mut Root, text: &str, y:i8, anchor:i8, center:bool) {
+fn label (root: &mut Root, text: &str, y:i16, anchor:i16, center:bool) {
 
-    // define the starting position of the text. 
+    // define the starting position of the text.
     // if center: anchor - half_text_size
     // no center: anchor
-    let mut txt_spot_x = anchor - if center {text.len() as i8 / 2} else {0};
+    let mut txt_spot_x = anchor - if center {text.len() as i16 / 2} else {0};
 
     // render each char ad increment position
     for i in text.chars() {
@@ -302,26 +301,26 @@ fn label (root: &mut Root, text: &str, y:i8, anchor:i8, center:bool) {
 
 // opes the game menu with options before playing the game
 fn menu(root: &mut Root) {
-    
+
     // define the size of each option on the screen
-    const BTN_SIZE: i8 = 10;
+    const BTN_SIZE: i16 = 10;
 
     // create a local cursor for the options
     let mut menu_cursor = 0;
 
-    // inicialize data to give to play() 
+    // inicialize data to give to play()
     let mut settings: [usize; 2] = SETTINGS_DEFAULT;
 
     // while window is open
     while !root.window_closed() {
 
-        // handle rendering 
+        // handle rendering
         root.set_default_background(colors::BLACK);
         root.clear();
 
         // define half size of the position and paddding
-        let half:[i8; 2] = [MIN_WIDTH/2, MIN_HEIGHT/2];
-        const PADDING: i8 = 2;
+        let half:[i16; 2] = [MIN_WIDTH/2, MIN_HEIGHT/2];
+        const PADDING: i16 = 2;
 
         // render top labels
         label(root, "Rusty Tower Of Hanoi", 1, half[0], true);
@@ -331,8 +330,8 @@ fn menu(root: &mut Root) {
         for i in 0..2 {
 
             // define it's text position on the screen
-            let spot_x: i8 = 2 + half[0] - BTN_SIZE - PADDING + (i as i8 * BTN_SIZE) + (PADDING * i as i8);
-            let spot_y: i8 = half[1];
+            let spot_x: i16 = 2 + half[0] - BTN_SIZE - PADDING + (i as i16 * BTN_SIZE) + (PADDING * i as i16);
+            let spot_y: i16 = half[1];
 
             // render it's text decided by the loop index
             label(root, ["Poles", "Disks"][i], spot_y, spot_x + 3, false);
@@ -340,19 +339,18 @@ fn menu(root: &mut Root) {
             // i32 versions of position for the put_char method
             let spot_x32 = spot_x as i32;
             let spot_y32 = spot_y as i32;
-    
+
             // render the current values on settings
             root.put_char(spot_x32, spot_y32, char::from_digit((settings[i] / 10) as u32, 10).unwrap(), BackgroundFlag::None);
             root.put_char(spot_x32 + 1, spot_y32, char::from_digit((settings[i] % 10) as u32, 10).unwrap(), BackgroundFlag::None);
-    
+
             // if this option is selected, render the pseudo cursor
             if i as i32 == menu_cursor {
-                root.put_char(spot_x32 + 0, spot_y32 - 2, '/',  BackgroundFlag::None);
+                root.put_char(spot_x32 + 0, spot_y32 - 2, '/', BackgroundFlag::None);
                 root.put_char(spot_x32 + 1, spot_y32 - 2, '\\', BackgroundFlag::None);
                 root.put_char(spot_x32 + 0, spot_y32 + 2, '\\', BackgroundFlag::None);
-                root.put_char(spot_x32 + 1, spot_y32 + 2, '/',  BackgroundFlag::None);
+                root.put_char(spot_x32 + 1, spot_y32 + 2, '/', BackgroundFlag::None);
             }
-    
         }
 
         // bottom label
@@ -368,7 +366,7 @@ fn menu(root: &mut Root) {
         use tcod::input::KeyCode::*;
         use core::cmp::{min, max};
 
-        // check if game inputs are triggered 
+        // check if game inputs are triggered
         match check_game_input(root, key) {
 
             // quit
@@ -381,11 +379,11 @@ fn menu(root: &mut Root) {
                 match key {
 
                     // move between options
-                    tcod::input::Key { code: Left, .. }  => menu_cursor = max(menu_cursor-1, 0),
+                    tcod::input::Key { code: Left, .. } => menu_cursor = max(menu_cursor-1, 0),
                     tcod::input::Key { code: Right, .. } => menu_cursor = min(menu_cursor+1, 1),
 
                     // change option
-                    tcod::input::Key { code: Up, .. }   => settings[menu_cursor as usize] = min(settings[menu_cursor as usize] + 1, SETTINGS_MINMAX[menu_cursor as usize][1]),
+                    tcod::input::Key { code: Up, .. } => settings[menu_cursor as usize] = min(settings[menu_cursor as usize] + 1, SETTINGS_MINMAX[menu_cursor as usize][1]),
                     tcod::input::Key { code: Down, .. } => settings[menu_cursor as usize] = max(settings[menu_cursor as usize] - 1, SETTINGS_MINMAX[menu_cursor as usize][0]),
 
                     // play
@@ -404,7 +402,7 @@ fn menu(root: &mut Root) {
 
 // play the game with given settings
 fn play(root: &mut Root, num_spots:usize, num_disks:usize) {
-    
+
     // create a new board
     let mut board: Board = Board::new(num_spots, num_disks/*, 8, 2*/);
     println!("{:?}", board);
@@ -415,7 +413,7 @@ fn play(root: &mut Root, num_spots:usize, num_disks:usize) {
         // rendering
         root.set_default_background(colors::BLACK);
         root.clear();
-    
+
         // top labels
         label(root, "Stack all disks on the rightmost pole", 1, MIN_WIDTH / 2, true);
         label(root, "You can't stack a disk on top of a smaller disk", 2, MIN_WIDTH / 2, true);
@@ -423,7 +421,7 @@ fn play(root: &mut Root, num_spots:usize, num_disks:usize) {
         // bottom labels
         label(root, "Left/Right: move | UP: pick disk | Down: drop disk", MIN_HEIGHT-3, MIN_WIDTH / 2, true);
         label(root, "R: reset | Esc: main menu", MIN_HEIGHT-2, MIN_WIDTH / 2, true);
-        
+
         // render the board
         draw_board(root, &mut board);
 
@@ -445,7 +443,7 @@ fn play(root: &mut Root, num_spots:usize, num_disks:usize) {
                 // back to menu
                 2 => {
                     menu(root);
-                    break; 
+                    break;
                 },
 
                 // exit
@@ -457,7 +455,7 @@ fn play(root: &mut Root, num_spots:usize, num_disks:usize) {
         }
 
         // check if player solved the puzzle
-        if check_game_state(&mut board) { 
+        if check_game_state(&mut board) {
             win(root, &mut board);
             break;
         }
@@ -503,7 +501,7 @@ fn win (root: &mut Root, board: &mut Board) {
         _=> { "Wait, that's ilegal!"}
 
     };
-    
+
     // print on console as well
     println!("WIN! :D");
 
@@ -530,7 +528,7 @@ fn win (root: &mut Root, board: &mut Board) {
         println!("Press (almost) any key to continue");
         while !{
             use tcod::input::*;
-            use tcod::input::KeyCode::*; 
+            use tcod::input::KeyCode::*;
             match root.wait_for_keypress(true) {
             Key { code: LeftWin, .. } => false,
             Key { code: PrintScreen, .. } => false,
